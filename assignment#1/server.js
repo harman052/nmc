@@ -3,6 +3,7 @@ const url = require('url');
 const StringDecoder = require('string_decoder').StringDecoder;
 const routes = require('./routes');
 const handlers = require('./requestHandlers');
+const config = require('./config');
 
 const unifiedServer = (req, res) => {
     let parsedURL = url.parse(req.url, true);
@@ -52,8 +53,8 @@ const startServer = () => {
         unifiedServer(req, res);
     });
 
-    server.listen(3000, () => {
-        console.log('Server is listening at 3000.');
+    server.listen(config.port, () => {
+        console.log(`Server is listening at port ${config.port} in ${config.envName} environment.`);
     })
 }
 
