@@ -114,8 +114,8 @@ const startServer = () => {
      * Instantiate HTTPS server. 
      */
     const httpsServerOptions = {
-        'key': fs.readFileSync('./https/key.pem'),
-        'cert': fs.readFileSync('./https/cert.pem')
+        'key': fs.readFileSync('./assignment#1/https/key.pem'),
+        'cert': fs.readFileSync('./assignment#1/https/cert.pem')
     };
 
     const httpsServer = https.createServer(httpsServerOptions, (req, res) => {
