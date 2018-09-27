@@ -6,6 +6,6 @@ const fileOps = require('./lib/fileOps');
  */
 server.startServer();
 
-fileOps.read('test', 'newFile', (data) => {
-    console.log('Data ---> ', data);
+fileOps.delete('test', 'newFile', (err) => {
+    console.log('Err ---> ', err);
 });
