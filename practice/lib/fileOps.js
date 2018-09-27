@@ -24,6 +24,9 @@ lib.baseDir = path.join(__dirname, '/../.data/')
  lib.create = (dir, file, data, callback) => {
 
     // Open the file for writing, create one if it does not exist.
+    /**
+     * filedescriptor is an integer, used to reference an opened file.
+     */
     fs.open(lib.baseDir + dir + '/' + file + '.json', 'wx', (err, fileDescriptor) => {
         if(!err && fileDescriptor) {
             // Convert data to string.
@@ -48,6 +51,28 @@ lib.baseDir = path.join(__dirname, '/../.data/')
         }
     });
  };
+
+ lib.read = (dir, file, callback) => {
+     
+     /**
+      * Can specify encoding and mode in which 
+      * file should open (read, write etc.)
+      * 
+      * If options is passed as a string, it specifies 
+      * an encoding.
+      */
+     const options = {
+        encoding: 'utf8', 
+        flag: 'r'
+     }
+     fs.readFile(lib.baseDir + dir + '/' + file + '.json', options, (err, data) => {
+        if(!err) {
+            callback(data);
+        } else {
+            callback('Error reading the file.')
+        }
+     });
+ }
 
 
 module.exports = lib;

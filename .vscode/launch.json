@@ -8,7 +8,7 @@
             "type": "node",
             "request": "launch",
             "name": "Node debugger",
-            "program": "${workspaceFolder}/practice\\index.js"
+            "program": "${workspaceFolder}/practice/index.js"
         }
     ]
 }

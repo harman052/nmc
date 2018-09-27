@@ -6,9 +6,6 @@ const fileOps = require('./lib/fileOps');
  */
 server.startServer();
 
-/**
- * Open file, create, if does not exist.
- */
-fileOps.create('test', 'newFile', {"foo": "bar"}, (err) => {
-    console.log('Error occurred ---> ', err);
+fileOps.read('test', 'newFile', (data) => {
+    console.log('Data ---> ', data);
 });
