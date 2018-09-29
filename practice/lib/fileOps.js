@@ -53,7 +53,7 @@ const writeToFile = (fileDescriptor, data, callback) => {
             // Write to file and close it.
             writeToFile(fileDescriptor, data, callback);
         } else {
-            callback("Error creating the file, may be file already exits!");
+            callback(err, {"Error": "Error creating the file, may be file already exits!"});
         }
     });
  };
