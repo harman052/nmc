@@ -5,8 +5,9 @@
  /**
   * Dependencies
   */
-const fs = require('fs');
-const path = require('path');
+const fs = require('fs')
+const path = require('path')
+const helpers = require('./helpers')
 
 /**
  * Container
@@ -66,10 +67,11 @@ lib.baseDir = path.join(__dirname, '/../.data/')
         flag: 'r'
      }
      fs.readFile(lib.baseDir + dir + '/' + file + '.json', options, (err, data) => {
-        if(!err) {
-            callback(data);
+        if(!err && data) {
+            const parsedData = helpers.parseJsonToObject(data);
+            callback(false, parsedData);
         } else {
-            callback('Error reading the file.')
+            callback(err, data);
         }
      });
  }

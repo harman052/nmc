@@ -3,9 +3,10 @@ const https =  require('https');
 const url = require('url');
 const StringDecoder = require('string_decoder').StringDecoder;
 const routes = require('./routes');
-const handlers = require('./requestHandlers');
-const config = require('./config');
+const handlers = require('./lib/requestHandlers');
+const config = require('./lib/config');
 const fs = require('fs');
+const helpers = require('./lib/helpers');
 
 
 /**
@@ -68,7 +69,7 @@ const unifiedServer = (req, res) => {
             'queryStringObject' : queryStringObject,
             'method' : method,
             'headers' : headers,
-            'payload' : buffer
+            'payload' : helpers.parseJsonToObject(buffer)
         }
         
         /** 
