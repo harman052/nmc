@@ -25,4 +25,23 @@ helpers.hash = (str) => {
     }
 }
 
+helpers.createRandomString = (strLength) => {
+  strLength = typeof(strLength) == 'string' && str.length > 0 ? strLength : 20;
+  if(strLength) {
+    
+    let str = '';
+
+    /** Define all possible characters */
+    const possibleCharacters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+    for(let i = 0; i < strLength; i++) {
+      let randomCharacter = possibleCharacters.charAt(Math.floor(Math.random() * possibleCharacters.length));
+      str += randomCharacter;
+    }
+    return str;
+  } else {
+    return false;
+  }
+}
+
 module.exports = helpers
