@@ -6,7 +6,8 @@ const handlers = require('./lib/requestHandlers');
 let routes = {
     'hello': handlers.hello,
     'users': handlers.users,
-    'tokens': handlers.tokens
+    'tokens': handlers.tokens,
+    'checks': handlers.checks
 };
 
 module.exports = routes;

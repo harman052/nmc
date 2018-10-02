@@ -1,5 +1,6 @@
 const fileOps = require('./fileOps')
 const helpers = require('./helpers')
+const config = require('./config')
 
 /**
  * Routes handlers
@@ -190,7 +191,6 @@ handlers._users.put = (data, callback) => {
 
 /**
  * Required data: phone
- * @TODO Cleanup (delete) any other data files associated with the user
  */
 handlers._users.delete = (data, callback) => {
     
@@ -202,13 +202,39 @@ handlers._users.delete = (data, callback) => {
         const token = typeof(data.headers.token) == 'string' ? data.headers.token : false;
         handlers._tokens.verifyToken(token, phone, (tokenIsValid) => {
             if(tokenIsValid) {
-                fileOps.read('users', phone, (err, data) => {
-                    if(!err && data) {
+                fileOps.read('users', phone, (err, userData) => {
+                    if(!err && userData) {
                         fileOps.delete('users', phone, (err) => {
                             if(err) {
                                 callback(500, {"Error": "Could not delete the user."});
                             } else {
-                                callback(200, {"Error": "User successfully deleted."});
+                                // Delete each of the checks associated with the user
+                                const userChecks = typeof(userData.checks) == 'object' && userData.checks instanceof Array ? userData.checks : []
+                                if(userChecks.length > 0) {
+                                    const checksToDelete = userChecks.length;
+                                    var deletionErrors = false;
+                                    var checksDeleted = 0;
+                                    userChecks.forEach(checkId => {
+                                        fileOps.delete('checks', checkId, (err) => {
+                                            if(err) {
+                                                deletionErrors = true;
+                                             }
+                                            checksDeleted++;
+                                        
+                                        if(checksDeleted == checksToDelete){
+                                        if(!deletionErrors) {
+                                            callback(200, {"Message": "User successfully deleted."});
+                                        } else {
+                                            callback(500,{'Error' : "Errors encountered while attempting to delete all of the user's checks. All checks may not have been deleted from the system successfully."})
+                                        }
+                                    } else {
+                                        callback(500, {'Error': 'Errors encountered while attempting to delete all of the user\'s checks.'});
+                                    }
+                                });
+                            });
+                                } else {
+                                    callback(200, {"Message": "User successfully deleted."});
+                                }
                             }
                         })
                     } else {
@@ -243,7 +269,7 @@ handlers._tokens.verifyToken = (id, phone, callback) => {
     });
 }
 
-/** Tokens */
+
 handlers.tokens = (data, callback) => {
     const acceptableMethods = ['post', 'get', 'put', 'delete'];
     if(acceptableMethods.indexOf(data.method) > -1) {
@@ -373,5 +399,249 @@ handlers._tokens.delete = (data, callback) => {
         callback(400, {'Error': 'Missing required field.'});
     }
 }
+
+/** Checks */
+
+/** Container for check methods */
+handlers._checks = {};
+
+
+handlers.checks = (data, callback) => {
+    const acceptableMethods = ['post', 'get', 'put', 'delete'];
+    if(acceptableMethods.indexOf(data.method) > -1) {
+        handlers._checks[data.method](data, callback);
+    } else {
+        callback(405, "Method not allowed.");
+    }
+}
+
+/** 
+ * Checks - post
+ * Required data: protocol, url, method, successCodes, timeoutSeconds
+ * Optional data: none
+ */
+handlers._checks.post = (data, callback) => {
+    
+    /** Validate required inputs */
+    const protocol = typeof(data.payload.protocol) == 'string' && ['http', 'https'].indexOf(data.payload.protocol) > -1 ? data.payload.protocol : false;
+    const url = typeof(data.payload.url) == 'string' && data.payload.url.trim().length > 0 ? data.payload.url.trim() : false;
+    const method = typeof(data.payload.method) == 'string' && ['post', 'get', 'put', 'delete'].indexOf(data.payload.method) > -1 ? data.payload.method : false;
+    const successCodes = typeof(data.payload.successCodes) == 'object' && data.payload.successCodes instanceof Array ? data.payload.successCodes : false;
+    const timeoutSeconds = typeof(data.payload.timeoutSeconds) == 'number' && data.payload.timeoutSeconds % 1 === 0 && data.payload.timeoutSeconds >= 1 && data.payload.timeoutSeconds <= 5 ? data.payload.timeoutSeconds : false;
+
+    if(protocol && url && method && successCodes && timeoutSeconds) {
+
+        /** Get token from headers to verify whether the user is authenticated */
+        const token = typeof(data.headers.token) == 'string' && data.headers.token.trim().length > 0 ? data.headers.token.trim() : false;
+        
+        if(token) {
+
+            /** Look up the user phone by reading the token */
+            fileOps.read('tokens', token, (err, tokenData) => {
+                if(!err && tokenData) {
+
+                    fileOps.read('users', tokenData.phone, (err, userData) => {
+                        if(!err && userData) {
+                            const userChecks = typeof(userData.checks) == 'object' && userData.checks instanceof Array ? userData.checks : [];
+
+                            if(userChecks.length < config.maxChecks) {
+
+                                const checkId = helpers.createRandomString(20);
+
+                                const checkObject = {
+                                    id: checkId,
+                                    userPhone: userData.phone,
+                                    protocol: protocol,
+                                    url: url,
+                                    method: method,
+                                    successCodes: successCodes,
+                                    timeoutSeconds: timeoutSeconds
+                                }
+
+                                fileOps.create('checks', checkId, checkObject, (err) => {
+                                    if(!err) {
+                                        userData.checks = userChecks;
+                                        userData.checks.push(checkId);
+                                        fileOps.update('users', userData.phone, userData, (err) => {
+                                            if(!err) {
+                                                callback(200, {'Message': 'User updated with new check.'});
+                                            } else {
+                                                callback(500, {'Error': 'Could not update user with new check.'});
+                                            }
+                                        });
+                                    } else {
+                                        callback(500, {'Error': 'Could not create the new check.'});
+                                    }
+                                });
+
+                            } else {
+                                callback(400, {'Error': `The user already has the maximum number of checks (${config.maxChecks}).`});
+                            }
+                        } else {
+                            callback(400, {'Error': 'User associated with received token was not found.'});                            
+                        }
+                    });
+                } else {
+                    callback(400, {'Error': 'Token provided in the header not found on the disk.'});                    
+                }
+            });
+        } else {
+            callback(400, {'Error': 'Invalid token.'});
+        }
+    } else {
+        callback(400, {'Error': 'Missing required fields, or inputs are invalid.'})
+    }
+}
+
+
+/** 
+ * Checks - get
+ * Required data: id
+ * Optional data: none
+ */
+handlers._checks.get = (data, callback) => {
+    const id = typeof(data.queryStringObject.id) == 'string' && data.queryStringObject.id.trim().length === 20 ? data.queryStringObject.id.trim() : false;
+    if(id) {
+        const token = typeof(data.headers.token) == 'string' && data.headers.token.trim().length === 20 ? data.headers.token.trim() : false;
+        fileOps.read('tokens', token, (err, tokenData) => {
+            if(!err && data) {
+                handlers._tokens.verifyToken(token, tokenData.phone, (tokenIsValid) => {
+                    if(tokenIsValid) {
+                        fileOps.read('checks', id, (err, checkData) => {
+                            if(!err && checkData) {
+                                callback(200, checkData);
+                            } else {
+                                callback(404, {"Error": "Check does not exist."});
+                            }
+                        });
+                } else {
+                    callback(400, {'Error': 'Token provided in the header is invalid.'});
+                }
+            });
+            } else {
+                callback(400, {'Error': 'Token provided in the header was not found on the disk.'});
+            }
+        });
+    } else {
+        callback(400, {"Error": "Missing required field or field invalid."})
+    }
+}
+
+
+/** 
+ * Checks - put
+ * Required data: id
+ * Optional data: protocol, url, method, successCodes, timeoutSeconds (one must be sent)
+ */
+handlers._checks.put = (data, callback) => {
+    
+    /** Required input */
+    const id = typeof(data.payload.id) == 'string' && data.payload.id.trim().length == 20 ? data.payload.id.trim() : false;
+
+    /** Optional inputs */
+    const protocol = typeof(data.payload.protocol) == 'string' && ['http', 'https'].indexOf(data.payload.protocol) > -1 ? data.payload.protocol : false;
+    const url = typeof(data.payload.url) == 'string' && data.payload.url.trim().length > 0 ? data.payload.url.trim() : false;
+    const method = typeof(data.payload.method) == 'string' && ['post', 'get', 'put', 'delete'].indexOf(data.payload.method) > -1 ? data.payload.method : false;
+    const successCodes = typeof(data.payload.successCodes) == 'object' && data.payload.successCodes instanceof Array ? data.payload.successCodes : false;
+    const timeoutSeconds = typeof(data.payload.timeoutSeconds) == 'number' && data.payload.timeoutSeconds % 1 === 0 && data.payload.timeoutSeconds >= 1 && data.payload.timeoutSeconds <= 5 ? data.payload.timeoutSeconds : false;
+
+    if(id) {
+        const token = typeof(data.headers.token) == 'string' && data.headers.token.trim().length === 20 ? data.headers.token.trim() : false;
+        fileOps.read('tokens', token, (err, tokenData) => {
+            if(!err && data) {
+                handlers._tokens.verifyToken(token, tokenData.phone, (tokenIsValid) => {
+                    if(tokenIsValid) {
+                        fileOps.read('checks', id, (err, checkData) => {
+                            if(!err && checkData) {
+                                if(protocol) {
+                                    checkData.protocol = protocol;
+                                }
+                                if(url) {
+                                    checkData.url = url;
+                                }
+                                if(method) {
+                                    checkData.method = method;
+                                }
+                                if(successCodes) {
+                                    checkData.successCodes = successCodes;
+                                }
+                                if(timeoutSeconds) {
+                                    checkData.timeoutSeconds = timeoutSeconds;
+                                }
+                                fileOps.update('checks', id, checkData, (err) => {
+                                    if(!err) {
+                                        callback(200, {"Message": "Check updated successfully."});
+                                    } else {
+                                        callback(500, {"Error": "Error updating the check."});
+                                    }
+                                });
+                            } else {
+                                callback(404, {"Error": "Check does not exist."});
+                            }
+                        });
+                } else {
+                    callback(400, {'Error': 'Token provided in the header is invalid.'});
+                }
+            });
+            } else {
+                callback(400, {'Error': 'Token provided in the header was not found on the disk.'});
+            }
+        });
+    } else {
+        callback(400, {"Error": "Missing required field or field invalid."})
+    }
+}
+
+
+/** 
+ * Checks - delete
+ * Required data: id
+ * Optional data: none
+ */
+handlers._checks.delete = (data, callback) => {
+    const id = typeof(data.queryStringObject.id) == 'string' && data.queryStringObject.id.trim().length == 20 ? data.queryStringObject.id.trim() : false;
+    if(id) {
+        const token = typeof(data.headers.token) == 'string' && data.headers.token.trim().length === 20 ? data.headers.token.trim() : false;
+        fileOps.read('tokens', token, (err, tokenData) => {
+            if(!err && data) {
+                handlers._tokens.verifyToken(token, tokenData.phone, (tokenIsValid) => {
+                    if(tokenIsValid) {
+                        fileOps.delete('checks', id, (err) => {
+                            if(!err) {
+                                fileOps.read('users', tokenData.phone, (err, userData) => {
+                                    if(!err && userData) {
+                                        const checkPosition = userData.checks.indexOf(id);
+                                        if(checkPosition > -1) {
+                                            userData.checks.splice(checkPosition, 1);
+                                            fileOps.update('users', userData.phone, userData, (err) => {
+                                                if (!err) {
+                                                    callback(200, {'Message': 'Check deleted and user is updated.'})
+                                                } else {
+                                                    callback(500,{"Error" : "Could not update user."});
+                                                }
+                                            });
+                                        } else {
+                                            callback(500,{"Error" : "Could not find the check on the user's object, so could not remove it."});
+                                        }
+
+                                    } 
+                                });
+                            } else {
+                                callback(500, {'Error': 'Unable to delete check from disk.'});            
+                            }
+                        });
+                } else {
+                    callback(400, {'Error': 'Token provided in the header is invalid.'});
+                }
+            });
+            } else {
+                callback(400, {'Error': 'Token provided in the header was not found on the disk.'});
+            }
+        });
+    } else {
+        callback(400, {"Error": "Missing required field or field invalid."})
+    }
+}
+
 
 module.exports = handlers;

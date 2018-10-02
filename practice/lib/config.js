@@ -12,7 +12,8 @@
      envName: 'staging',
      httpPort: 3000,
      httpsPort: 3001,
-     hashingSecret: 'thisIsASecret'
+     hashingSecret: 'thisIsASecret',
+     maxChecks: 5
  }
 
 /**
@@ -22,7 +23,8 @@
     envName: 'production',
     httpPort: 5000,
     httpsPort: 5001,
-    hashingSecret: 'thisIsAlsoASecret'
+    hashingSecret: 'thisIsAlsoASecret',
+    maxChecks: 5
 }
 
 /**
