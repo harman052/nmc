@@ -221,26 +221,26 @@ handlers._users.delete = (data, callback) => {
                                              }
                                             checksDeleted++;
                                         
-                                        if(checksDeleted == checksToDelete){
-                                        if(!deletionErrors) {
-                                            callback(200, {"Message": "User successfully deleted."});
-                                        } else {
-                                            callback(500,{'Error' : "Errors encountered while attempting to delete all of the user's checks. All checks may not have been deleted from the system successfully."})
-                                        }
-                                    } else {
-                                        callback(500, {'Error': 'Errors encountered while attempting to delete all of the user\'s checks.'});
-                                    }
-                                });
-                            });
+                                            if(checksDeleted == checksToDelete){
+                                                if(!deletionErrors) {
+                                                    callback(200, {"Message": "User successfully deleted."});
+                                                } else {
+                                                    callback(500,{
+                                                        'Error' : `Errors encountered while attempting to delete all of the user's checks. 
+                                                                All checks may not have been deleted from the system successfully.`})
+                                                }
+                                            } 
+                                        });
+                                    });
                                 } else {
                                     callback(200, {"Message": "User successfully deleted."});
                                 }
                             }
-                        })
+                        });
                     } else {
                         callback(400, {"Error": "User does not exist."});
                     }
-                })
+                });
             } else {
                 callback(400, {"Error": "Missing required token in header, or token is invalid."});
             }
