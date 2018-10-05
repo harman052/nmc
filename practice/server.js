@@ -132,6 +132,10 @@ const startServer = () => {
     })
 }
 
+helpers.sendTwilioSMS('9988771252', 'Hello!', (err) => {
+    console.log('This was the error', err);
+})
+
 /**
  * Make this module available to other modules.
  */

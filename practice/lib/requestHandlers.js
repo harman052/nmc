@@ -229,7 +229,7 @@ handlers._users.delete = (data, callback) => {
                                                         'Error' : `Errors encountered while attempting to delete all of the user's checks. 
                                                                 All checks may not have been deleted from the system successfully.`})
                                                 }
-                                            } 
+                                            }
                                         });
                                     });
                                 } else {
