@@ -2,12 +2,14 @@ const http =  require('http');
 const https =  require('https');
 const url = require('url');
 const StringDecoder = require('string_decoder').StringDecoder;
-const routes = require('./routes');
-const handlers = require('./lib/requestHandlers');
-const config = require('./lib/config');
+const routes = require('../routes');
+const handlers = require('./requestHandlers');
+const config = require('./config');
 const fs = require('fs');
-const helpers = require('./lib/helpers');
+const helpers = require('./helpers');
+var path = require('path');
 
+const server = {};
 
 /**
  * Common function that parses URL and
@@ -16,7 +18,7 @@ const helpers = require('./lib/helpers');
  * @param {*} req request object
  * @param {*} res response object
  */
-const unifiedServer = (req, res) => {
+server.unifiedServer = (req, res) => {
 
     /**
      * Parse URL. 
@@ -97,46 +99,41 @@ const unifiedServer = (req, res) => {
     });
 }
 
+/** Instantiate HTTP server */
+server.httpServer = http.createServer((req, res) => {
+    unifiedServer(req, res);
+});
 
-const startServer = () => { 
-    const httpServer = http.createServer((req, res) => {
-        unifiedServer(req, res);
-    });
+server.httpsServerOptions = {
+    'key': fs.readFileSync(path.join(__dirname, '../https/key.pem')),
+    'cert': fs.readFileSync(path.join(__dirname, '../https/cert.pem'))
+};
 
-    /**
-     * Starts the HTTP server.
-     */
-    httpServer.listen(config.httpPort, () => {
+/** Instantiate HTTPS server */
+server.httpsServer = https.createServer(server.httpsServerOptions, (req, res) => {
+    unifiedServer(req, res);
+});
+
+server.init = () => {
+
+    /** Starts the HTTP server */
+    server.httpServer.listen(config.httpPort, () => {
         console.log(`HTTP server is listening at port 
         ${config.httpPort} in ${config.envName} environment.`);
-    })
-
-    /**
-     * Instantiate HTTPS server. 
-     */
-    const httpsServerOptions = {
-        'key': fs.readFileSync('./practice/https/key.pem'),
-        'cert': fs.readFileSync('./practice/https/cert.pem')
-    };
-
-    const httpsServer = https.createServer(httpsServerOptions, (req, res) => {
-        unifiedServer(req, res);
     });
 
-    /**
-     * Starts the HTTPS server.
-     */
-    httpsServer.listen(config.httpsPortt, () => {
+    /** Starts the HTTPS server */
+    server.httpsServer.listen(config.httpsPortt, () => {
         console.log(`HTTPS server is listening at port 
         ${config.httpsPort} in ${config.envName} environment.`);
     })
 }
 
-helpers.sendTwilioSMS('9988771252', 'Hello!', (err) => {
-    console.log('This was the error', err);
-})
+// helpers.sendTwilioSMS('9988771252', 'Hello!', (err) => {
+//     console.log('This was the error', err);
+// });
 
 /**
  * Make this module available to other modules.
  */
-module.exports = { startServer };
+module.exports = server;
